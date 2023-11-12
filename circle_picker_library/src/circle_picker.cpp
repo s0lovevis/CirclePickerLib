@@ -156,6 +156,7 @@ cv::Mat circlePicker::getOriginalImage() {
 }
 
 cv::Mat circlePicker::getCanvas() {
+    canvas = original_img.clone();
     drawCircles();
     return canvas.clone();
 }
