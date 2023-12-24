@@ -25,6 +25,8 @@ enum circleStatus {
     INPROCESS   ///< Окружность находится в процессе выбора.
 };
 
+
+
 /**
  * @class circlePicker
  * @brief Класс для уточнения выбора окружностей на изображении.
@@ -49,18 +51,20 @@ public:
     /**
      * @brief Запуск режима интерактивного выбора окружностей на изображении.
      * @param show_info Флаг для отображения информационного сообщения вначале (по умолчанию true).
+     * @param precision Погрешность расчета радиуса по трем точкам. По умолчанию 0.2
      */
-    void pickMode(bool show_info = true);
+    void pickMode(bool show_info = true, float precision=0.2);
 
 
     /**
-     * @brief Угадывание окружности на основе трех точек.
+     * @brief Уточнение окружности на основании трех точек.
      * @param p1 Первая точка.
      * @param p2 Вторая точка.
      * @param p3 Третья точка.
-     * @return Определенная окружность в формате (центр_x, центр_y, радиус).
+     * @param precision Погрешность в определении радиуса. По умолчанию 0.2
+     * @return Найденная окружность в формате (центр_x, центр_y, радиус). Если нет подходящего вариант вернет cv::Point(-1, -1, -1)
      */
-    cv::Vec3i guessCircle(cv::Point p1, cv::Point p2, cv::Point p3);
+    cv::Vec3i guessCircle(cv::Point p1, cv::Point p2, cv::Point p3, float precision);
 
 
     /**
@@ -113,6 +117,7 @@ private:
 
     static const std::string win_name;  ///< Название окна для отображения изображения.
     static const float roi_precision;   ///< Точность области интереса (ROI) для выбора окружностей.
+    float pick_precision; ///< Погрешность расчета радиуса по трём выбранным точкам
 
     std::vector<std::pair<cv::Vec3i, circleStatus>> circlesFinded;  ///< Список найденных окружностей вместе с их статусами.
     std::vector<cv::Point> clicked_points;                         ///< Список выбранных пользователем точек для определения окружностей.

@@ -14,8 +14,8 @@ void onMouse(int event, int x, int y, int, void *obj) {
 
         cv::Mat warning_info = InfoMessages::getWarningInfo();
         warning_info.copyTo(picker->canvas(cv::Rect((int) (picker->canvas.cols / 2 - warning_info.cols / 2),
-                                    (int) (picker->canvas.rows / 2 - warning_info.rows / 2),
-                                    warning_info.cols, warning_info.rows)));
+                                                    (int) (picker->canvas.rows / 2 - warning_info.rows / 2),
+                                                    warning_info.cols, warning_info.rows)));
 
         cv::imshow(circlePicker::win_name, picker->canvas);
 
@@ -28,7 +28,7 @@ void onMouse(int event, int x, int y, int, void *obj) {
             cv::Point p2 = picker->clicked_points[sz - 2];
             cv::Point p3 = picker->clicked_points[sz - 3];
 
-            cv::Vec3i new_circle = picker->guessCircle(p1, p2, p3);
+            cv::Vec3i new_circle = picker->guessCircle(p1, p2, p3, picker->pick_precision);
             if (new_circle != cv::Vec3i(-1, -1, -1)) {
                 picker->circlesFinded.emplace_back(new_circle, INPROCESS);
             }
@@ -50,6 +50,13 @@ void onMouse(int event, int x, int y, int, void *obj) {
 
 void circlePicker::drawPoints() {
     size_t sz = clicked_points.size();
+
+//    // Отрисовка вобще всех кликов
+//    for(auto point: clicked_points){
+//        cv::circle(canvas, point, 3, cv::Scalar(0, 0, 255), -1);
+//    }
+
+    // Отрисовка только последних кликов
     if (sz % 3 == 1) {
         cv::circle(canvas, clicked_points[sz - 1], 3, cv::Scalar(0, 0, 255), -1);
     } else if (sz % 3 == 2) {
@@ -72,7 +79,8 @@ void circlePicker::drawCircles() {
 }
 
 
-cv::Vec3i circlePicker::guessCircle(cv::Point p1, cv::Point p2, cv::Point p3) {
+cv::Vec3i circlePicker::guessCircle(cv::Point p1, cv::Point p2, cv::Point p3, float precision=0.2) {
+    pick_precision = precision;
     int expected_radius = GeometryOperations::getRadius(p1, p2, p3);
     cv::Point expected_center = GeometryOperations::calculateCentre(p1, p2, p3);
 
@@ -98,11 +106,10 @@ cv::Vec3i circlePicker::guessCircle(cv::Point p1, cv::Point p2, cv::Point p3) {
     // Для окружностей разного радиуса будут отличаться коэффициенты точности
     // Например, для больших окружностей будем считать, что пользователь +- адекватный
 
-    float point_precision = expected_radius > 60 ? 0.2 : 0.5;
+    cv::HoughCircles(roi_gray, circles, cv::HOUGH_GRADIENT, 1, roi_gray.rows / 10.0,
+                     80.0, 25.0, (int) (expected_radius * (1.0 - pick_precision)),
+                     (int) (expected_radius * (1.0 + pick_precision)));
 
-    cv::HoughCircles(roi_gray, circles, cv::HOUGH_GRADIENT, 1, roi_gray.rows / 8.0,
-                     80.0, 25.0, (int) (expected_radius * (1.0 - point_precision)),
-                     (int) (expected_radius * (1.0 + point_precision)));
     // Сдвинем все окружности на нормальные координаты:
     for (auto &circle: circles) {
         circle[0] += (float) (rect_vertex_1.x);
@@ -128,7 +135,7 @@ void circlePicker::refuseCircle(cv::Point click) {
         if (circlesFinded[i].second == SELECTED) {
             cv::Vec3i circle = circlesFinded[i].first;
             float dist = abs((float)(circle[2]) - GeometryOperations::calcDistance({(float)circle[0], (float)circle[1]},
-                                                               GeometryOperations::pointToVec2f(click)));
+                                                                                   GeometryOperations::pointToVec2f(click)));
             if (dist < min_dist) {
                 min_dist = dist;
                 index = i;
@@ -161,7 +168,8 @@ cv::Mat circlePicker::getCanvas() {
     return canvas.clone();
 }
 
-void circlePicker::pickMode(bool show_info) {
+void circlePicker::pickMode(bool show_info, float precision) {
+    pick_precision = precision;
     cv::namedWindow(circlePicker::win_name);
     cv::setMouseCallback(circlePicker::win_name, onMouse, this);
 
